@@ -1,0 +1,241 @@
+openapi: 3.0.2
+info:
+  title: Eventful_ML
+  version: 1.0.0
+  description: This Api is for Eventful project backend to request event popularity prediction by inputs of the date of interest to fetch all events. The post request ideally works for all event per day per request.
+paths:
+  /event:
+    summary: event specs
+    description: |-
+      Provide the date of interest for the events. 
+      Api will fetch the events json file from do512 (or multiple sources once expanded)
+    post:
+      requestBody:
+        description: Event date in json format (no validation needed so far)
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/event'
+            examples:
+              event:
+                value:
+                  events:
+                    - tz_adjusted_begin_date: '2018-02-10T09:30Z-0600'
+                      title: Blue Genie Art Bazaar
+                      category: Art & Culture
+                      tz_adjusted_end_date: '2018-02-10T09:30Z-0600'
+                      past: true
+                      is_eventbrite: false
+                      is_free: false
+                      doors: true
+                      sold_out: true
+                      ticket_info: Free to Attend
+                      artists:
+                        - id: 51
+                          popularity: 297
+                        - id: 58
+                          popularity: 89
+                      venue:
+                        id: 93
+                        popularity: 90
+                        zip: 78701
+                      id: 9
+                      uid: 43
+                      source: Do512
+        required: true
+      tags:
+        - event
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/score'
+              examples:
+                score:
+                  value:
+                    events:
+                      - uid: 28
+                        score: 2.58
+          description: Sucessful request
+        '400':
+          content:
+            text/xml:
+              schema:
+                type: string
+              examples:
+                bad_date:
+                  value: '"Invalid event info."'
+          description: Invalid event specs
+        '401':
+          content:
+            text/xml:
+              schema:
+                type: string
+              examples:
+                Unauthorized:
+                  value: '"Unauthorized use."'
+          description: Block out unauthorized users.
+        '404':
+          content:
+            text/xml:
+              schema:
+                type: string
+              examples:
+                Empty_events:
+                  value: '"No events for this date."'
+                Wrong_path:
+                  value: '"wrong request path."'
+          description: 'To respond to wrong request folder, or no events returned.'
+      summary: post event date to ML API and get predicted score
+      description: |-
+        post event date to ML 
+        response will get ML predicted scores for each specific event source and id.
+components:
+  schemas:
+    event:
+      title: Root Type for Event
+      description: the event data json file
+      required:
+        - tz_adjusted_begin_date
+        - title
+        - category
+        - tz_adjusted_end_date
+        - past
+        - is_eventbrite
+        - is_free
+        - doors
+        - sold_out
+        - ticket_info
+        - artists
+        - venue
+        - uid
+      type: object
+      properties:
+        tz_adjusted_begin_date:
+          format: date-time
+          description: 'event start time in utc, with time delta, in format %Y-%m-%dT%H:%M:%S%z'
+          type: string
+        title:
+          description: event name
+          type: string
+        category:
+          description: event category
+          type: string
+        tz_adjusted_end_date:
+          format: date-time
+          description: 'event end time in utc, with time delta, in format %Y-%m-%dT%H:%M:%S%z'
+          type: string
+        past:
+          description: event past or not
+          type: boolean
+        is_eventbrite:
+          description: whether event is on eventbrite
+          type: boolean
+        is_free:
+          description: event is free or not
+          type: boolean
+        doors:
+          description: ticket sale at door or not
+          type: boolean
+        sold_out:
+          description: whether tickets sold out or not
+          type: boolean
+        ticket_info:
+          description: extra information of the ticket price
+          type: string
+        artists:
+          $ref: '#/components/schemas/artists'
+          description: artists needed for ML
+        venue:
+          $ref: '#/components/schemas/venue'
+          description: event venue info needed for ML
+        uid:
+          format: int32
+          description: unique internal id
+          type: integer
+        source:
+          description: data source
+          type: string
+      example:
+        events:
+          - source: Do512
+            id: 11027934
+            uid: 1156
+            title: Daughters & Health w/ Show Me The Body
+            category: 'Music '
+            tz_adjusted_begin_date: '2019-12-10T19:00:00-0600'
+            tz_adjusted_end_date: '2019-12-11T02:00:00-0600'
+            past: false
+            ticket_info: 'All Ages '
+            is_eventbrite: false
+            is_free: false
+            doors: true
+            sold_out: false
+            artists:
+              - id: 51
+                popularity: 297
+              - id: 58
+                popularity: 89
+            venue:
+              id: 175439
+              popularity: 15
+              zip: 78741
+    artists:
+      title: Root Type for artists
+      description: 'all specs of the artists"artists":'
+      required:
+        - artists
+      type: object
+      properties:
+        artists:
+          $ref: '#/components/schemas/artists'
+          description: List of the artists.
+      example:
+        - id: 36047
+          popularity: 22
+        - id: 1604
+          popularity: 135
+    venue:
+      title: Root Type for venue
+      description: all specs of the venue used in ML
+      required:
+        - venue
+      type: object
+      properties:
+        venue:
+          $ref: '#/components/schemas/venue'
+          properties:
+            id:
+              format: int32
+              type: integer
+            popularity:
+              format: int32
+              type: integer
+            zip:
+              type: string
+      example:
+        venue:
+          id: 114333
+          popularity: 1
+          zip: 78701
+    score:
+      title: Root Type for Event
+      description: the event data json file
+      required:
+        - score
+        - uid
+      type: object
+      properties:
+        score:
+          format: float
+          description: score given by ML prediction and post-processing
+          type: number
+        uid:
+          format: int32
+          description: unique internal id
+          type: integer
+      example:
+        events:
+          - uid: 1156
+            score: 1.865
